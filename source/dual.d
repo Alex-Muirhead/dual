@@ -509,7 +509,7 @@ if (isFloatingPoint!T)
     // assert(isClose(arg(cdc), arg(c1)-arg(c2), EPS));
 
     auto cec = c1^^c2;
-    assert(isClose(cec.re, 0.1152413197994, 1e-12));
+    assert(isClose(cec.re, 1.0, 1e-12));
     assert(isClose(cec.du, 0.2187079045274, 1e-12));
 
     // Check dual-real operations.
@@ -1351,15 +1351,15 @@ Dual!T exp(T)(Dual!T x) @trusted pure nothrow @nogc // TODO: @safe
 @safe pure nothrow @nogc unittest
 {
     import std.math.operations : isClose;
-    import std.math.constants : PI;
+    import std.math.constants : E;
 
     assert(exp(dual(0.0, 0.0)) == dual(1.0, 0.0));
 
     auto a = dual(2.0, 1.0);
     assert(exp(conj(a)) == conj(exp(a)));
 
-    auto b = exp(dual(0.0L, 1.0L) * PI);
-    assert(isClose(b.re, -1.0L, 0.0, 1e-15));
+    auto b = exp(dual(1.0L, 1.0L));
+    assert(isClose(b.re, E, 0.0, 1e-15));
 }
 
 @safe pure nothrow @nogc unittest
@@ -1636,11 +1636,9 @@ Dual!T pow(T)(Dual!T x, const T n) @trusted pure nothrow @nogc
     if (x == 0.0)
         return Dual!T(0.0);
 
-    if (x.du == 0 && x.re > 0.0)
-        return Dual!T(std.math.pow(x.re, n));
-
-    Dual!T t = log(x);
-    return fromPolar!(T, T)(std.math.exp(n * t.re), n * t.du);
+    auto value = std.math.pow(x.re, n);
+    auto deriv = n * value/x.re;
+    return Dual!T(value, x.du * deriv);
 }
 
 ///
@@ -1684,9 +1682,13 @@ Dual!T pow(T)(const T x, Dual!T n) @trusted pure nothrow @nogc
 {
     static import std.math;
 
-    return (x > 0.0)
-        ? fromPolar!(T, T)(std.math.pow(x, n.re), n.du * std.math.log(x))
-        : pow(Dual!T(x), n);
+    if (x == 0.0)
+        return Dual!T(0.0);
+
+    auto value = std.math.pow(x, n.re);
+    auto deriv = value * std.math.log(x);
+
+    return Dual!T(value, n.du * deriv);
 }
 
 ///
