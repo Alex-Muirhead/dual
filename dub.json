@@ -3,6 +3,9 @@
 		"alex"
 	],
 	"copyright": "Copyright © 2023, alex",
+	"dependencies": {
+		"silly": "~>1.1.1"
+	},
 	"description": "A minimal D application.",
 	"license": "proprietary",
 	"name": "dual"
