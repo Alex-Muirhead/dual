@@ -277,6 +277,7 @@ if (isFloatingPoint!T)
     }
 
     // numeric / dual
+    // TODO
     Dual!(CommonType!(T, R)) opBinaryRight(string op, R)(const R r) const
         if (op == "/" && isNumeric!R)
     {
@@ -322,27 +323,13 @@ if (isFloatingPoint!T)
     Dual!(CommonType!(T, R)) opBinaryRight(string op, R)(const R lhs) const
         if (op == "^^" && isNumeric!R)
     {
-        import core.math : cos, sin;
-        import std.math.exponential : exp, log;
-        import std.math.constants : PI;
-        Unqual!(CommonType!(T, R)) ab = void, ar = void;
+        import std.math.exponential : log;
+        Unqual!(CommonType!(T, R)) value = void, deriv = void;
 
-        if (lhs >= 0)
-        {
-            // r = lhs
-            // theta = 0
-            ab = lhs ^^ this.re;
-            ar = log(lhs) * this.du;
-        }
-        else
-        {
-            // r = -lhs
-            // theta = PI
-            ab = (-lhs) ^^ this.re * exp(-PI * this.du);
-            ar = PI * this.re + log(-lhs) * this.du;
-        }
+        value = lhs ^^ re;
+        deriv = value * log(lhs);
 
-        return typeof(return)(ab * cos(ar), ab * sin(ar));
+        return typeof(return)(value, deriv*du);
     }
 
     // OP-ASSIGN OPERATORS
@@ -360,13 +347,13 @@ if (isFloatingPoint!T)
     ref Dual opOpAssign(string op, C)(const C d)
         if (op == "*" && is(C R == Dual!R))
     {
-        auto temp = re*d.re - du*d.du;
-        du = du*d.re + re*d.du;
-        re = temp;
+        this *= d.re;
+        du += re*d.du;
         return this;
     }
 
     // dual /= dual
+    // TODO
     ref Dual opOpAssign(string op, C)(const C d)
         if (op == "/" && is(C R == Dual!R))
     {
@@ -501,16 +488,16 @@ if (isFloatingPoint!T)
     assert(cmc.du == c1.du - c2.du);
 
     auto ctc = c1 * c2;
-    // assert(isClose(abs(ctc), abs(c1)*abs(c2), EPS));
+    assert(isClose(ctc.re, c1.re*c2.re, EPS));
     // assert(isClose(arg(ctc), arg(c1)+arg(c2), EPS));
 
     auto cdc = c1 / c2;
-    // assert(isClose(abs(cdc), abs(c1)/abs(c2), EPS));
+    assert(isClose(cdc.re, c1.re/c2.re, EPS));
     // assert(isClose(arg(cdc), arg(c1)-arg(c2), EPS));
 
     auto cec = c1^^c2;
     assert(isClose(cec.re, 1.0, 1e-12));
-    assert(isClose(cec.du, 0.2187079045274, 1e-12));
+    assert(isClose(cec.du, 0.5, 1e-12));
 
     // Check dual-real operations.
     double a = 123.456;
@@ -528,11 +515,11 @@ if (isFloatingPoint!T)
     assert(ctr.du == c1.du*a);
 
     auto cdr = c1 / a;
-    // assert(isClose(abs(cdr), abs(c1)/a, EPS));
+    assert(isClose(cdr.re, c1.re/a, EPS));
     // assert(isClose(arg(cdr), arg(c1), EPS));
 
     auto cer = c1^^3.0;
-    // assert(isClose(abs(cer), abs(c1)^^3, EPS));
+    assert(isClose(cer.re, (c1.re)^^3, EPS));
     // assert(isClose(arg(cer), arg(c1)*3, EPS));
 
     auto rpc = a + c1;
@@ -546,11 +533,11 @@ if (isFloatingPoint!T)
     assert(rtc == ctr);
 
     auto rdc = a / c1;
-    // assert(isClose(abs(rdc), a/abs(c1), EPS));
+    assert(isClose(rdc.re, a/c1.re, EPS));
     // assert(isClose(arg(rdc), -arg(c1), EPS));
 
     rdc = a / c2;
-    // assert(isClose(abs(rdc), a/abs(c2), EPS));
+    assert(isClose(rdc.re, a/c2.re, EPS));
     // assert(isClose(arg(rdc), -arg(c2), EPS));
 
     auto rec1a = 1.0 ^^ c1;
@@ -561,27 +548,10 @@ if (isFloatingPoint!T)
     assert(rec2a.re == 1.0);
     assert(rec2a.du == 0.0);
 
-    auto rec1b = (-1.0) ^^ c1;
-    // assert(isClose(abs(rec1b), std.math.exp(-PI * c1.du), EPS));
-    // auto arg1b = arg(rec1b);
-    /* The argument _should_ be PI, but floating-point rounding error
-     * means that in fact the imaginary part is very slightly negative.
-     */
-    // assert(isClose(arg1b, PI, EPS) || isClose(arg1b, -PI, EPS));
-
-    auto rec2b = (-1.0) ^^ c2;
-    // assert(isClose(abs(rec2b), std.math.exp(-2 * PI), EPS));
-    // assert(isClose(arg(rec2b), PI_2, EPS));
-
     auto rec3a = 0.79 ^^ dual(6.8, 5.7);
     auto rec3b = dual(0.79, 0.0) ^^ dual(6.8, 5.7);
     assert(isClose(rec3a.re, rec3b.re, 1e-14));
     assert(isClose(rec3a.du, rec3b.du, 1e-14));
-
-    auto rec4a = (-0.79) ^^ dual(6.8, 5.7);
-    auto rec4b = dual(-0.79, 0.0) ^^ dual(6.8, 5.7);
-    assert(isClose(rec4a.re, rec4b.re, 1e-14));
-    assert(isClose(rec4a.du, rec4b.du, 1e-14));
 
     auto rer = a ^^ dual(2.0, 0.0);
     auto rcheck = a ^^ 2.0;
@@ -590,29 +560,17 @@ if (isFloatingPoint!T)
     assert(isIdentical(rer.re, rcheck));
     assert(rer.du == 0.0);
 
-    auto rer2 = (-a) ^^ dual(2.0, 0.0);
-    rcheck = (-a) ^^ 2.0;
+    auto rer2 = a ^^ dual(-2.0, 0.0);
+    rcheck = a ^^ (-2.0);
     assert(feqrel(rer2.re, rcheck) == double.mant_dig);
     assert(isIdentical(rer2.re, rcheck));
-    assert(isClose(rer2.du, 0.0, 0.0, 1e-10));
-
-    auto rer3 = (-a) ^^ dual(-2.0, 0.0);
-    rcheck = (-a) ^^ (-2.0);
-    assert(feqrel(rer3.re, rcheck) == double.mant_dig);
-    assert(isIdentical(rer3.re, rcheck));
-    assert(isClose(rer3.du, 0.0, 0.0, EPS));
-
-    auto rer4 = a ^^ dual(-2.0, 0.0);
-    rcheck = a ^^ (-2.0);
-    assert(feqrel(rer4.re, rcheck) == double.mant_dig);
-    assert(isIdentical(rer4.re, rcheck));
-    assert(rer4.du == 0.0);
+    assert(rer2.du == 0.0);
 
     // Check Dual-int operations.
     foreach (i; 0 .. 6)
     {
         auto cei = c1^^i;
-        assert(isClose(abs(cei), abs(c1)^^i, 1e-14));
+        assert(isClose(cei.re, (c1.re)^^i, 1e-14));
         // Use cos() here to deal with arguments that go outside
         // the (-pi,pi] interval (only an issue for i>3).
         // assert(isClose(core.math.cos(arg(cei)), core.math.cos(arg(c1)*i), 1e-14));
@@ -955,8 +913,10 @@ Dual!T tan(T)(Dual!T d) @safe pure nothrow @nogc
 */
 Dual!T asin(T)(Dual!T d)  @safe pure nothrow @nogc
 {
-    auto ash = asinh(Dual!T(-d.du, d.re));
-    return Dual!T(ash.du, -ash.re);
+    import std.math : asin, sqrt;
+    auto value = asin(d.re);
+    auto deriv = 1 / sqrt(1 - d.re*d.re);
+    return Dual!T(value, deriv*d.du);
 }
 
 ///
@@ -981,7 +941,7 @@ Dual!T acos(T)(Dual!T d)  @safe pure nothrow @nogc
 {
     static import std.math;
     auto as = asin(d);
-    return Dual!T(T(std.math.PI_2) - as.re, as.du);
+    return Dual!T(T(std.math.PI_2) - as.re, -as.du);
 }
 
 ///
@@ -1362,19 +1322,24 @@ Dual!T exp(T)(Dual!T x) @trusted pure nothrow @nogc // TODO: @safe
     assert(isClose(b.re, E, 0.0, 1e-15));
 }
 
-@safe pure nothrow @nogc unittest
+// @safe pure nothrow @nogc 
+unittest
 {
+    import std.math.operations : isClose;
     import std.math.traits : isNaN, isInfinity;
 
-    auto a = exp(dual(0.0, double.infinity));
-    assert(a.re.isNaN && a.du.isNaN);
-    auto b = exp(dual(0.0, double.infinity));
-    assert(b.re.isNaN && b.du.isNaN);
+    import std.stdio;
+    import std.format;
+
+    auto a = exp(dual(0.0, +double.infinity));
+    assert(isClose(a.re, 1.0) && a.du.isInfinity);
+    auto b = exp(dual(0.0, -double.infinity));
+    assert(isClose(b.re, 1.0) && b.du.isInfinity);
     auto c = exp(dual(0.0, double.nan));
-    assert(c.re.isNaN && c.du.isNaN);
+    assert(isClose(c.re, 1.0) && c.du.isNaN);
 
     auto d = exp(dual(+double.infinity, 0.0));
-    assert(d == dual(double.infinity, 0.0));
+    assert(d.re == double.infinity && d.du.isNaN);
     auto e = exp(dual(-double.infinity, 0.0));
     assert(e == dual(0.0));
     auto f = exp(dual(-double.infinity, 1.0));
@@ -1382,16 +1347,16 @@ Dual!T exp(T)(Dual!T x) @trusted pure nothrow @nogc // TODO: @safe
     auto g = exp(dual(+double.infinity, 1.0));
     assert(g == dual(double.infinity, double.infinity));
     auto h = exp(dual(-double.infinity, +double.infinity));
-    assert(h == dual(0.0));
+    assert(h.re == 0.0 && h.du.isNaN);
     auto i = exp(dual(+double.infinity, +double.infinity));
-    assert(i.re.isInfinity && i.du.isNaN);
+    assert(i.re.isInfinity && i.du.isInfinity);
     auto j = exp(dual(-double.infinity, double.nan));
-    assert(j == dual(0.0));
+    assert(j.re == 0.0 && j.du.isNaN);
     auto k = exp(dual(+double.infinity, double.nan));
     assert(k.re.isInfinity && k.du.isNaN);
 
     auto l = exp(dual(double.nan, 0));
-    assert(l.re.isNaN && l.du == 0.0);
+    assert(l.re.isNaN && l.du.isNaN);
     auto m = exp(dual(double.nan, 1));
     assert(m.re.isNaN && m.du.isNaN);
     auto n = exp(dual(double.nan, double.nan));
@@ -1400,26 +1365,15 @@ Dual!T exp(T)(Dual!T x) @trusted pure nothrow @nogc // TODO: @safe
 
 @safe pure nothrow @nogc unittest
 {
-    import std.math.constants : PI;
+    import std.math.constants : E;
     import std.math.operations : isClose;
 
-    auto a = exp(dual(0.0, -PI));
-    assert(isClose(a.re, -1.0, 0.0, 1e-15));
-
-    auto b = exp(dual(0.0, -2.0 * PI / 3.0));
-    assert(isClose(b.re, -0.5L));
-    assert(isClose(b.du, -0.866025403784438646763L));
-
-    auto c = exp(dual(0.0, PI / 3.0));
-    assert(isClose(c.re, 0.5L));
-    assert(isClose(c.du, 0.866025403784438646763L));
-
-    auto d = exp(dual(0.0, 2.0 * PI / 3.0));
-    assert(isClose(d.re, -0.5L));
-    assert(isClose(d.du, 0.866025403784438646763L));
-
-    auto e = exp(dual(0.0, PI));
-    assert(isClose(e.re, -1.0, 0.0, 1e-15));
+    auto a = exp(dual(0.0, 1.0));
+    assert(isClose(a.re, 1.0));
+    assert(isClose(a.du, 1.0));
+    auto b = exp(dual(1.0, 2.0));
+    assert(isClose(b.re, E));
+    assert(isClose(b.du, 2*E));
 }
 
 /**
@@ -1462,13 +1416,10 @@ Dual!T log(T)(Dual!T x) @safe pure nothrow @nogc
     auto a = dual(2.0, 1.0);
     assert(log(conj(a)) == conj(log(a)));
 
-    auto b = 2.0 * log10(dual(0.0, 1.0));
+    auto b = 2.0 * log10(dual(0.5, 0.5));
     auto c = 4.0 * log10(dual(sqrt(2.0) / 2, sqrt(2.0) / 2));
     assert(isClose(b.re, c.re, 0.0, 1e-15));
     assert(isClose(b.du, c.du, 0.0, 1e-15));
-
-    assert(log(dual(-1.0L, 0.0L)) == dual(0.0L, PI));
-    assert(log(dual(-1.0L, -0.0L)) == dual(0.0L, -PI));
 }
 
 @safe pure nothrow @nogc unittest
