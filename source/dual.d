@@ -281,42 +281,10 @@ if (isFloatingPoint!T)
     Dual!(CommonType!(T, R)) opBinaryRight(string op, R)(const R r) const
         if (op == "/" && isNumeric!R)
     {
-        version (FastMath)
-        {
-            // Compute norm(this)
-            immutable norm = re * re + du * du;
-            // Compute r * conj(this)
-            immutable prod_re = r * re;
-            immutable prod_im = r * -du;
-            // Divide the product by the norm
-            typeof(return) w = void;
-            w.re = prod_re / norm;
-            w.du = prod_im / norm;
-            return w;
-        }
-        else
-        {
-            import core.math : fabs;
-            typeof(return) w = void;
-            if (fabs(re) < fabs(du))
-            {
-                immutable ratio = re/du;
-                immutable rdivd = r/(re*ratio + du);
-
-                w.re = rdivd*ratio;
-                w.du = -rdivd;
-            }
-            else
-            {
-                immutable ratio = du/re;
-                immutable rdivd = r/(re + du*ratio);
-
-                w.re = rdivd;
-                w.du = -rdivd*ratio;
-            }
-
-            return w;
-        }
+        typeof(return) w = void;
+        w.re = r / re;
+        w.du = -r*du / (re*re);
+        return w;
     }
 
     // numeric ^^ dual
@@ -353,45 +321,12 @@ if (isFloatingPoint!T)
     }
 
     // dual /= dual
-    // TODO
     ref Dual opOpAssign(string op, C)(const C d)
         if (op == "/" && is(C R == Dual!R))
     {
-        version (FastMath)
-        {
-            // Compute norm(d)
-            immutable norm = d.re * d.re + d.du * d.du;
-            // Compute this * conj(d)
-            immutable prod_re = re * d.re - du * -d.du;
-            immutable prod_im = du * d.re + re * -d.du;
-            // Divide the product by the norm
-            re = prod_re / norm;
-            du = prod_im / norm;
-            return this;
-        }
-        else
-        {
-            import core.math : fabs;
-            if (fabs(d.re) < fabs(d.du))
-            {
-                immutable ratio = d.re/d.du;
-                immutable denom = d.re*ratio + d.du;
-
-                immutable temp = (re*ratio + du)/denom;
-                du = (du*ratio - re)/denom;
-                re = temp;
-            }
-            else
-            {
-                immutable ratio = d.du/d.re;
-                immutable denom = d.re + d.du*ratio;
-
-                immutable temp = (re + du*ratio)/denom;
-                du = (du - re*ratio)/denom;
-                re = temp;
-            }
-            return this;
-        }
+        du = (d.re*du - re*d.du) / (d.re*d.re);
+        re /= d.re;
+        return this;
     }
 
     // dual ^^= dual
@@ -595,12 +530,12 @@ if (isFloatingPoint!T)
 
     c1c = c1;
     c1c /= c2;
-    assert(isClose(c1c.re, 0.5882352941177, 1e-12));
-    assert(isClose(c1c.du, -0.3529411764706, 1e-12));
+    assert(isClose(c1c.re, 2.0, 1e-12));
+    assert(isClose(c1c.du, -6.0, 1e-12));
 
     c2c /= c1;
-    assert(isClose(c2c.re, 1.25, EPS));
-    assert(isClose(c2c.du, 0.75, EPS));
+    assert(isClose(c2c.re, 0.5, EPS));
+    assert(isClose(c2c.du, 1.5, EPS));
 
     c2c = c2;
     c2c /= c2;
@@ -1322,8 +1257,7 @@ Dual!T exp(T)(Dual!T x) @trusted pure nothrow @nogc // TODO: @safe
     assert(isClose(b.re, E, 0.0, 1e-15));
 }
 
-// @safe pure nothrow @nogc 
-unittest
+@safe pure nothrow @nogc unittest
 {
     import std.math.operations : isClose;
     import std.math.traits : isNaN, isInfinity;
