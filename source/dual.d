@@ -1337,21 +1337,21 @@ Dual!T exp(T)(Dual!T x) @trusted pure nothrow @nogc // TODO: @safe
 Dual!T log(T)(Dual!T x) @safe pure nothrow @nogc
 {
     static import std.math;
-    return Dual!T(std.math.log(x.re), x.du / x.re);
+    immutable deriv = x.du / x.re;
+    return Dual!T(std.math.log(x.re), deriv);
 }
 
 ///
 @safe pure nothrow @nogc unittest
 {
     import core.math : sqrt;
-    import std.math.constants : PI;
     import std.math.operations : isClose;
 
     auto a = dual(2.0, 1.0);
     assert(log(conj(a)) == conj(log(a)));
 
     auto b = 2.0 * log10(dual(0.5, 0.5));
-    auto c = 4.0 * log10(dual(sqrt(2.0) / 2, sqrt(2.0) / 2));
+    auto c = 4.0 * log10(dual(sqrt(2.0) / 2, sqrt(2.0) / 4));
     assert(isClose(b.re, c.re, 0.0, 1e-15));
     assert(isClose(b.du, c.du, 0.0, 1e-15));
 }
@@ -1359,34 +1359,36 @@ Dual!T log(T)(Dual!T x) @safe pure nothrow @nogc
 @safe pure nothrow @nogc unittest
 {
     import std.math.traits : isNaN, isInfinity;
+    import std.math.operations : isClose;
     import std.math.constants : PI, PI_2, PI_4;
 
+    // NOTE: Don't compare the sign of NaN, as this is never
+    //       defined by any specification
     auto a = log(dual(-0.0L, 0.0L));
-    assert(a == dual(-real.infinity, PI));
+    assert(a.re == -real.infinity);
+    assert(a.du.isNaN);
     auto b = log(dual(0.0L, 0.0L));
-    assert(b == dual(-real.infinity, +0.0L));
+    assert(b.re == -real.infinity);
+    assert(b.du.isNaN);
     auto c = log(dual(1.0L, real.infinity));
-    assert(c == dual(real.infinity, PI_2));
+    assert(c == dual(0.0, real.infinity));
     auto d = log(dual(1.0L, real.nan));
-    assert(d.re.isNaN && d.du.isNaN);
+    assert(isClose(d.re, 0.0, 0.0, real.epsilon));
+    assert(d.du.isNaN);
 
-    auto e = log(dual(-real.infinity, 1.0L));
-    assert(e == dual(real.infinity, PI));
-    auto f = log(dual(real.infinity, 1.0L));
-    assert(f == dual(real.infinity, 0.0L));
-    auto g = log(dual(-real.infinity, real.infinity));
-    assert(g == dual(real.infinity, 3.0 * PI_4));
-    auto h = log(dual(real.infinity, real.infinity));
-    assert(h == dual(real.infinity, PI_4));
-    auto i = log(dual(real.infinity, real.nan));
-    assert(i.re.isInfinity && i.du.isNaN);
+    auto e = log(dual(real.infinity, 1.0L));
+    assert(e == dual(real.infinity, 0.0L));
+    auto f = log(dual(real.infinity, real.infinity));
+    assert(f.re == real.infinity && f.du.isNaN);
+    auto g = log(dual(real.infinity, real.nan));
+    assert(g.re.isInfinity && g.du.isNaN);
 
-    auto j = log(dual(real.nan, 1.0L));
+    auto h = log(dual(real.nan, 1.0L));
+    assert(h.re.isNaN && h.du.isNaN);
+    auto i = log(dual(real.nan, real.infinity));
+    assert(i.re.isNaN && i.du.isNaN);
+    auto j = log(dual(real.nan, real.nan));
     assert(j.re.isNaN && j.du.isNaN);
-    auto k = log(dual(real.nan, real.infinity));
-    assert(k.re.isInfinity && k.du.isNaN);
-    auto l = log(dual(real.nan, real.nan));
-    assert(l.re.isNaN && l.du.isNaN);
 }
 
 @safe pure nothrow @nogc unittest
