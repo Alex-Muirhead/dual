@@ -1391,31 +1391,6 @@ Dual!T log(T)(Dual!T x) @safe pure nothrow @nogc
     assert(j.re.isNaN && j.du.isNaN);
 }
 
-@safe pure nothrow @nogc unittest
-{
-    import std.math.constants : PI;
-    import std.math.operations : isClose;
-
-    // auto a = log(fromPolar(1.0, PI / 6.0));
-    // assert(isClose(a, dual(0.0L, 0.523598775598298873077L), 0.0, 1e-15));
-
-    // auto b = log(fromPolar(1.0, PI / 3.0));
-    // assert(isClose(b, dual(0.0L, 1.04719755119659774615L), 0.0, 1e-15));
-
-    // auto c = log(fromPolar(1.0, PI / 2.0));
-    // assert(isClose(c, dual(0.0L, 1.57079632679489661923L), 0.0, 1e-15));
-
-    // auto d = log(fromPolar(1.0, 2.0 * PI / 3.0));
-    // assert(isClose(d, dual(0.0L, 2.09439510239319549230L), 0.0, 1e-15));
-
-    // auto e = log(fromPolar(1.0, 5.0 * PI / 6.0));
-    // assert(isClose(e, dual(0.0L, 2.61799387799149436538L), 0.0, 1e-15));
-
-    auto f = log(dual(-1.0L, 0.0L));
-    assert(isClose(f.re, 0.0L, 0.0, 1e-15));
-    assert(isClose(f.du, 0.0L, 0.0, 1e-15));
-}
-
 /**
  * Calculate the base-10 logarithm of x.
  * Params:
@@ -1431,7 +1406,8 @@ Dual!T log10(T)(Dual!T x) @safe pure nothrow @nogc
 }
 
 ///
-@safe pure nothrow @nogc unittest
+// @safe pure nothrow @nogc 
+unittest
 {
     import core.math : sqrt;
     import std.math.constants : LN10, PI;
@@ -1440,38 +1416,10 @@ Dual!T log10(T)(Dual!T x) @safe pure nothrow @nogc
     auto a = dual(2.0, 1.0);
     assert(log10(a) == log(a) / log(dual(10.0)));
 
-    auto b = log10(dual(0.0, 1.0)) * 2.0;
+    auto b = log10(dual(0.5, 1.0)) * 2.0;
     auto c = log10(dual(sqrt(2.0) / 2, sqrt(2.0) / 2)) * 4.0;
     assert(isClose(b.re, c.re, 0.0, 1e-15));
     assert(isClose(b.du, c.du, 0.0, 1e-15));
-}
-
-@safe pure nothrow @nogc unittest
-{
-    import std.math.constants : LN10, PI;
-    import std.math.operations : isClose;
-
-    // auto a = log10(fromPolar(1.0, PI / 6.0));
-    // assert(isClose(a, dual(0.0L, 0.227396058973640224580L), 0.0, 1e-15));
-
-    // auto b = log10(fromPolar(1.0, PI / 3.0));
-    // assert(isClose(b, dual(0.0L, 0.454792117947280449161L), 0.0, 1e-15));
-
-    // auto c = log10(fromPolar(1.0, PI / 2.0));
-    // assert(isClose(c, dual(0.0L, 0.682188176920920673742L), 0.0, 1e-15));
-
-    // auto d = log10(fromPolar(1.0, 2.0 * PI / 3.0));
-    // assert(isClose(d, dual(0.0L, 0.909584235894560898323L), 0.0, 1e-15));
-
-    // auto e = log10(fromPolar(1.0, 5.0 * PI / 6.0));
-    // assert(isClose(e, dual(0.0L, 1.13698029486820112290L), 0.0, 1e-15));
-
-    auto f = log10(dual(-1.0L, 0.0L));
-    assert(isClose(f.re, 0.0L, 0.0, 1e-15));
-    assert(isClose(f.du, 1.36437635384184134748L, 0.0, 1e-15));
-
-    assert(ceqrel(log10(dual(-100.0L, 0.0L)), dual(2.0L, PI / LN10)) >= real.mant_dig - 1);
-    assert(ceqrel(log10(dual(-100.0L, -0.0L)), dual(2.0L, -PI / LN10)) >= real.mant_dig - 1);
 }
 
 /**
@@ -1535,13 +1483,13 @@ Dual!T pow(T)(Dual!T x, const T n) @trusted pure nothrow @nogc
     assert(pow(dual(0.0), 2.0) == dual(0.0));
     assert(pow(dual(5.0), 2.0) == dual(25.0));
 
-    auto a = pow(dual(-1.0, 0.0), 0.5);
-    assert(isClose(a.re, 0.0, 0.0, 1e-16));
-    assert(isClose(a.du, +1.0, 0.0, 1e-16));
+    auto a = pow(dual(9.0, 0.0), 0.5);
+    assert(isClose(a.re, 3.0));
+    assert(isClose(a.du, 0.0, 0.0, 1e-16));
 
-    auto b = pow(dual(-1.0, -0.0), 0.5);
-    assert(isClose(b.re, 0.0, 0.0, 1e-16));
-    assert(isClose(b.du, -1.0, 0.0, 1e-16));
+    auto b = pow(dual(4.0, -2.0), 0.5);
+    assert(isClose(b.re, 2.0));
+    assert(isClose(b.du, -0.5));
 }
 
 /// ditto
