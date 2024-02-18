@@ -1507,9 +1507,6 @@ Dual!T pow(T)(Dual!T x, Dual!T y) @trusted pure nothrow @nogc
     auto a = dual(0.0);
     auto b = dual(2.0);
     assert(pow(a, b) == dual(0.0));
-
-    auto c = dual(0.0L, 1.0L);
-    assert(isClose(pow(c, c).re, exp((-PI) / 2)));
 }
 
 /// ditto
@@ -1540,13 +1537,16 @@ Dual!T pow(T)(const T x, Dual!T n) @trusted pure nothrow @nogc
     assert(isClose(b.re, -2.0, 0.0, 1e-15));
 }
 
-@safe pure nothrow @nogc unittest
+// @safe pure nothrow @nogc 
+unittest
 {
     import std.math.constants : PI;
     import std.math.operations : isClose;
 
     auto a = pow(dual(3.0, 4.0), 2);
-    assert(isClose(a.re, -7.0));
+    assert(isClose(a.re, 9.0));
+    import std.stdio;
+    stdout.writeln("Value:", a.du);
     assert(isClose(a.du, 24.0));
 
     auto b = pow(dual(3.0, 4.0), PI);
