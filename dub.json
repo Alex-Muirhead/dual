@@ -3,10 +3,20 @@
 		"alex"
 	],
 	"copyright": "Copyright © 2023, alex",
-	"dependencies": {
-		"silly": "~>1.1.1"
-	},
+	"configurations": [
+		{
+			"name": "library",
+			"targetType": "library"
+		},
+		{
+			"name": "unittest",
+			"dependencies": {
+				"silly": "~>1.1.1"
+			},
+		},
+	],
 	"description": "A minimal D application.",
 	"license": "proprietary",
-	"name": "dual"
+	"name": "dual",
+	"sourcePaths": ["source"]
 }
